@@ -36,4 +36,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 process.on('unhandledRejection', err => console.error(err));
 client.on('error', err => console.error(err));
 
-client.login(token);
+// Si el login falla, salir para que Docker (restart: unless-stopped) lo reinicie
+client.login(token).catch(err => {
+	console.error(err);
+	process.exit(1);
+});
