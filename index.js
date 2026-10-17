@@ -24,6 +24,7 @@ client.once('clientReady', () => {
 });
 
 client.on('messageCreate', msg => {
+	if(process.env.DEBUG) console.log('[msg] #' + (msg.channel && msg.channel.name) + ' ' + msg.author.username + ': ' + JSON.stringify(msg.content));
 	if(msg.author.bot || !msg.guild) return;
 	command.exec(msg, client);
 });
