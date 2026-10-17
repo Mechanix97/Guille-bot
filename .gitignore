@@ -6,3 +6,4 @@ temp/temp.mp3
 bin/config.json
 Procfile
 run.bat
+.env

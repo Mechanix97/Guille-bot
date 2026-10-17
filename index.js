@@ -1,17 +1,30 @@
 import { Command } from './modules/commands.js';
 
-import Discord from 'discord.js';
+import { Client, GatewayIntentBits } from 'discord.js';
 import fs from 'fs';
 
-const client = new Discord.Client();
+const client = new Client({
+	intents: [
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.MessageContent,
+		GatewayIntentBits.GuildVoiceStates
+	]
+});
 let command = new Command();
 
-fs.readFile('./bin/config.json','utf-8',(err,jsonString)=>{
-    const config = JSON.parse(jsonString);
-    client.login(config.token);
+// El token sale de DISCORD_TOKEN o, si no está, de bin/config.json
+let token = process.env.DISCORD_TOKEN;
+if(!token){
+	token = JSON.parse(fs.readFileSync('./bin/config.json','utf-8')).token;
+}
+
+client.once('clientReady', () => {
+	console.log('Conectado como ' + client.user.tag);
 });
 
-client.on('message', msg => {
+client.on('messageCreate', msg => {
+	if(msg.author.bot || !msg.guild) return;
 	command.exec(msg, client);
 });
 
@@ -19,3 +32,8 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
   	//command.entranceCheck(oldMember, newMember);
 });
 
+// Muchas promesas de los comandos no tienen catch: en Node moderno eso tira abajo el proceso
+process.on('unhandledRejection', err => console.error(err));
+client.on('error', err => console.error(err));
+
+client.login(token);
