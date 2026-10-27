@@ -37,6 +37,20 @@ client.on('voiceStateUpdate', (oldMember, newMember) => {
 process.on('unhandledRejection', err => console.error(err));
 client.on('error', err => console.error(err));
 
+// @discordjs/ws 1.x (el de discord.js 14) descarta un intento de conexión que tarda y le
+// saca el onerror sin cerrarlo; cuando vence su handshake de 30s, ws emite 'error' sin
+// nadie escuchando y Node tira abajo el proceso. Ese intento ya estaba abandonado y la
+// librería reconecta sola, así que se ignora. Cualquier otro error sigue matando el
+// proceso, para que Docker lo reinicie como antes.
+process.on('uncaughtException', err => {
+	if(err && err.message === 'Opening handshake has timed out'){
+		console.error('Ignorado (intento de conexión descartado): ' + err.message);
+		return;
+	}
+	console.error(err);
+	process.exit(1);
+});
+
 // Si el login falla, salir para que Docker (restart: unless-stopped) lo reinicie
 client.login(token).catch(err => {
 	console.error(err);
