@@ -2,7 +2,13 @@
 ## Descripción
   Bot de Discord programado en Javascript utilizando el modulo [Discord.js](https://discord.js.org/#/) para interactuar con la API de Discord.
   
-  El bot se encuentra alojado en [Heroku](https://www.heroku.com/), plataforma como servicio de computación en la Nube (Paas).
+  Corre en Docker (Node 22 + ffmpeg).
+
+## Cómo correrlo
+1. En el [Discord Developer Portal](https://discord.com/developers/applications) → Bot: generar el token y activar **Message Content Intent**.
+2. `cp .env.example .env` y poner el token en `DISCORD_TOKEN`.
+3. `docker compose up -d --build`
+4. Logs: `docker compose logs -f`
 
 ## Comandos 
 - g!sonidos para ver lista de sonidos

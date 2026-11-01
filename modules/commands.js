@@ -2,19 +2,17 @@ export { Command };
 
 import { VoiceConnection } from './voice_connection.js';
 
-import Discord from 'discord.js';
-import txtomp3 from 'text-to-mp3';
 import fs from 'fs';
-import utf8 from 'utf8';
+import path from 'path';
 import download from 'image-downloader';
 import sharp from 'sharp';
 
 import https from 'https';
 
 const optionsDolar = {
-  hostname: 'api-dolar-argentina.herokuapp.com',
+  hostname: 'dolarapi.com',
   port: 443,
-  path: '/api/dolarblue',
+  path: '/v1/dolares/blue',
   method: 'GET'
 }
 
@@ -91,7 +89,7 @@ class Command {
 
 	randomChamp(msg){
 		msg.reply("Que linea queres jugar, rey? [top, jg, mid, adc, supp, rand]")	
-        const collector = new Discord.MessageCollector(msg.channel, m => m.author.id === msg.author.id, { time: 10000 });
+        const collector = msg.channel.createMessageCollector({ filter: m => m.author.id === msg.author.id, time: 10000 });
         collector.once('collect', message => {
 			var selectedChamp
             if(message.content.toLowerCase() == 'top'){
@@ -122,7 +120,7 @@ class Command {
 				return;
 			}
 
-			message.channel.send("Juga " + selectedChamp.name ,{files: [selectedChamp.url]})
+			message.channel.send({content: "Juga " + selectedChamp.name, files: [selectedChamp.url]})
 			if(msg.member.voice.channel){
     			msg.content = "g!loquendo Jugate una partidita con " + selectedChamp.name + ", Rey";
 				this.loquendo(msg, "es").catch((err) =>{})
@@ -131,7 +129,7 @@ class Command {
 	}
 	  
 	randomusic(msg){
-		const n = Math.round(Math.random() * playlists.length)-1;
+		const n = Math.floor(Math.random() * playlists.length);
 		msg.channel.send(".p "+playlists[n])
 	}
 
@@ -181,7 +179,7 @@ class Command {
 	}
 
 	dato(msg){
-		const n = Math.round(Math.random() * 8)-1;
+		const n = Math.floor(Math.random() * 8);
 		this.playSound(msg,soundPath+"dato/"+n+".mp3",false);
 	}
 
@@ -198,23 +196,24 @@ class Command {
 					text = text.concat(" ");
 				}
 			}
-		 	user = client.users.cache.find(u => u.username === text);
+		 	const buscado = text.toLowerCase();
+		 	user = client.users.cache.find(u => u.username.toLowerCase() === buscado || (u.globalName && u.globalName.toLowerCase() === buscado));
 
 			if(user){
-				url = user.displayAvatarURL();
+				url = user.displayAvatarURL({ extension: 'png' });
 			} else {
 				user = msg.author;
-				url = msg.author.displayAvatarURL();
+				url = msg.author.displayAvatarURL({ extension: 'png' });
 			}
 		} else {
 			user = msg.author;
-			url = msg.author.displayAvatarURL();
+			url = msg.author.displayAvatarURL({ extension: 'png' });
 		}
 
 
 		const options = {
 	  		url: url,
-	  		dest: 'temp/profile.webp'        
+	  		dest: path.resolve('temp/profile.webp')        
 		}
 	 
 		download.image(options)
@@ -231,7 +230,7 @@ class Command {
 			    sharp(imagePath+'sentaste.png')
 			    .composite([{ input: data, top: 42, left: 420  }])
 			    .toFile('temp/sentaste.png').then(() =>{				
-					msg.channel.send("Noooooooooooo "+ user.username + ", donde te sentastes?",{files: ['temp/sentaste.png']})
+					msg.channel.send({content: "Noooooooooooo "+ user.username + ", donde te sentastes?", files: ['temp/sentaste.png']})
 					.then(() =>{
 						try{
 				   			fs.unlinkSync('temp/sentaste.png');	
@@ -271,12 +270,12 @@ class Command {
 					if(text.length >= 200){
 						msg.reply('Te exediste de caracteres, papu.');
 						resolve()
+						return;
 					}
-					txtomp3.attributes.tl = lenguage;
 					var d = new Date();
 					var n = d.getTime();
 					var filename = 'temp/loquendo_'+ n +'.mp3';
-					txtomp3.saveMP3(text, filename).then(() => {	
+					saveMP3(text, lenguage, filename).then(() => {	
 						var voiceConnection = new VoiceConnection(msg);
 						voiceConnection.connect().then(() => { 
 							voiceConnection.playSound(filename).then(() => {
@@ -347,7 +346,7 @@ class Command {
 		} else if(msg.content.toLowerCase() === 'g!dato'){
 			this.dato(msg);
 		} else if(msg.content.toLowerCase() === 'g!guillote'){
-			msg.reply('Que onda mono?',{files: [imagePath+'profile.png']});
+			msg.reply({content: 'Que onda mono?', files: [imagePath+'profile.png']});
 		} else if(msg.content.toLowerCase().startsWith('g!loquendo ')){
 			this.loquendo(msg,"es").catch((err) =>{})
 		} else if(msg.content.toLowerCase().startsWith('g!loquendobr ')){
@@ -404,4 +403,16 @@ function httpRequest(params, postData) {
         // IMPORTANT
         req.end();
     });
+}
+
+// Reemplaza a text-to-mp3: usa el mismo endpoint de TTS de Google Translate
+async function saveMP3(text, lenguage, filename) {
+	const params = new URLSearchParams({ ie: 'UTF-8', client: 'tw-ob', tl: lenguage, q: text });
+	const res = await fetch('https://translate.google.com/translate_tts?' + params, {
+		headers: { 'User-Agent': 'Mozilla/5.0' }
+	});
+	if (!res.ok) {
+		throw new Error('TTS statusCode=' + res.status);
+	}
+	fs.writeFileSync(filename, Buffer.from(await res.arrayBuffer()));
 }

@@ -1,0 +1,8 @@
+node_modules
+.git
+.env
+bin/config.json
+temp/*
+!temp/a.txt
+*.sublime-*
+debug.log

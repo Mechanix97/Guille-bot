@@ -1,0 +1,6 @@
+services:
+  guille-bot:
+    build: .
+    container_name: guille-bot
+    restart: unless-stopped
+    env_file: .env

@@ -1,5 +1,14 @@
 export { VoiceConnection };
 
+import {
+	joinVoiceChannel,
+	createAudioPlayer,
+	createAudioResource,
+	entersState,
+	AudioPlayerStatus,
+	VoiceConnectionStatus
+} from '@discordjs/voice';
+
 class VoiceConnection {
 	static connected = false;
 	connection = null;
@@ -13,7 +22,7 @@ class VoiceConnection {
   		return VoiceConnection.connected;
   	}
 
-  	connect(attempt) {  		
+  	connect(attempt) {
   		return new Promise((resolve, reject) => {
 			if(attempt == 0){
 				reject('MAX ATTEMPTS')
@@ -24,31 +33,39 @@ class VoiceConnection {
 				if(this.channel == null){
 					reject('No channel');
 				} else{
-					if(VoiceConnection.connected == true){	 
-						setTimeout(() =>{	
+					if(VoiceConnection.connected == true){
+						setTimeout(() =>{
 								this.connect(attempt - 1)
 								.then((ret) => {resolve(ret); })
 								.catch((err) => {reject(err);});
 							} ,1000);
 					} else {
-					  this.channel.join().then(conn =>{
-							VoiceConnection.connected = true;
+						VoiceConnection.connected = true;
+						const conn = joinVoiceChannel({
+							channelId: this.channel.id,
+							guildId: this.channel.guild.id,
+							adapterCreator: this.channel.guild.voiceAdapterCreator
+						});
+						entersState(conn, VoiceConnectionStatus.Ready, 20000).then(() => {
 							this.connection = conn;
-							resolve(); 
+							resolve();
 						}).catch(e => {
-						  console.log(e);
-						  reject(e);
-					  });
+							console.log(e);
+							conn.destroy();
+							VoiceConnection.connected = false;
+							reject(e);
+						});
 				  }
 				}
-			}			    		
-    	});		
-	    
+			}
+    	});
   	}
 
 	disconnect(){
 		return new Promise((resolve) => {
-			this.connection.disconnect();
+			if(this.connection && this.connection.state.status !== VoiceConnectionStatus.Destroyed){
+				this.connection.destroy();
+			}
 			VoiceConnection.connected = false;
 			resolve();
 		});
@@ -56,18 +73,20 @@ class VoiceConnection {
 
 	playSound(file) {
 		return new Promise((resolve, reject) => {
-			const dispatcher = this.connection.play(file);
-			dispatcher.on('finish', () => {
-				dispatcher.destroy();
+			const player = createAudioPlayer();
+			this.connection.subscribe(player);
+			player.play(createAudioResource(file));
+			player.on(AudioPlayerStatus.Idle, () => {
+				player.stop();
 				resolve();
 			});
-			dispatcher.on('error', e =>{
+			player.on('error', e =>{
 				console.log(e);
 				reject(e);
 			});
-			this.connection.on('disconnect', () =>{
+			this.connection.on(VoiceConnectionStatus.Disconnected, () =>{
 				resolve();
 			});
-		});	
+		});
 	}
 }
